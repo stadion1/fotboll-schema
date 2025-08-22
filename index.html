@@ -7,63 +7,93 @@
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: auto; }
     h1 { text-align: center; }
-    input, button { margin: 5px 0; padding: 8px; width: 100%; }
+    input, select, button { margin: 5px 0; padding: 8px; width: 100%; }
     .period { margin-top: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
-    .highlight { background: #f0f8ff; }
   </style>
 </head>
 <body>
-  <h1>Spelarschema 5v5</h1>
-  <p>Skriv in spelarnamn (8 st):</p>
+  <h1>Spelarschema</h1>
+
+  <label for="mode">Välj typ:</label>
+  <select id="mode" onchange="showModeOptions()">
+    <option value="match">Match</option>
+    <option value="turnering">Turnering</option>
+  </select>
+
+  <div id="options">
+    <label for="matches">Antal matcher:</label>
+    <input type="number" id="matches" value="1" min="1">
+    <label for="periods">Antal perioder per match:</label>
+    <input type="number" id="periods" value="3" min="1">
+    <label for="periodLength">Periodlängd (minuter):</label>
+    <input type="number" id="periodLength" value="10" min="1">
+    <label for="numPlayers">Antal spelare i truppen:</label>
+    <input type="number" id="numPlayers" value="8" min="5">
+  </div>
+
   <div id="players"></div>
   <button onclick="generateSchedule()">Skapa schema</button>
 
   <div id="schedule"></div>
 
   <script>
-    // skapa 8 inputfält för spelarnamn
     const playersDiv = document.getElementById("players");
-    for (let i = 0; i < 8; i++) {
-      let input = document.createElement("input");
-      input.placeholder = "Spelare " + (i+1);
-      input.id = "p" + i;
-      playersDiv.appendChild(input);
+    let playerInputs = [];
+
+    function showModeOptions() {
+      const mode = document.getElementById("mode").value;
+      document.getElementById("matches").parentElement.style.display = mode === 'turnering' ? 'block' : 'none';
     }
 
-    function generateSchedule() {
-      const players = [];
-      for (let i = 0; i < 8; i++) {
-        players.push(document.getElementById("p"+i).value || ("Spelare "+(i+1)));
+    function createPlayerInputs() {
+      playersDiv.innerHTML = '';
+      playerInputs = [];
+      const num = parseInt(document.getElementById("numPlayers").value);
+      for (let i = 0; i < num; i++) {
+        let input = document.createElement("input");
+        input.placeholder = `Spelare ${i+1}`;
+        input.id = `p${i}`;
+        playersDiv.appendChild(input);
+        playerInputs.push(input);
       }
+    }
 
+    document.getElementById("numPlayers").addEventListener('input', createPlayerInputs);
+    createPlayerInputs();
+
+    function generateSchedule() {
+      const numPlayers = parseInt(document.getElementById("numPlayers").value);
+      const periods = parseInt(document.getElementById("periods").value);
+      const periodLength = parseInt(document.getElementById("periodLength").value);
+      const mode = document.getElementById("mode").value;
+      const matches = mode === 'turnering' ? parseInt(document.getElementById("matches").value) : 1;
+
+      const players = playerInputs.map(input => input.value || input.placeholder);
       const scheduleDiv = document.getElementById("schedule");
-      scheduleDiv.innerHTML = "";
+      scheduleDiv.innerHTML = '';
 
-      const matches = 4;
-      const periods = 3;
-
-      // rotation (exempel: varje period 3 vilar)
-      const rests = [
-        [[0,1,2],[3,4,5],[6,7,0]],
-        [[1,2,3],[4,5,7],[0,1,7]],
-        [[2,3,4],[5,6,7],[0,1,2]],
-        [[3,4,5],[6,7,0],[1,2,3]]
-      ];
+      let playTime = new Array(numPlayers).fill(0);
 
       for (let m = 0; m < matches; m++) {
         let matchDiv = document.createElement("div");
         matchDiv.innerHTML = `<h2>Match ${m+1}</h2>`;
+
         for (let p = 0; p < periods; p++) {
-          const restIdx = rests[m][p];
-          const restNames = restIdx.map(i => players[i]);
-          const playNames = players.filter((_, idx) => !restIdx.includes(idx));
+          // Sortera spelare efter minst speltid för jämn rotation
+          let sorted = players.map((name, idx) => ({name, idx, time: playTime[idx]}))
+                              .sort((a,b) => a.time - b.time);
+          const onField = sorted.slice(0,5).map(s => s.idx);
+          const offField = sorted.slice(5).map(s => s.idx);
+          onField.forEach(i => playTime[i] += periodLength);
+
           let periodDiv = document.createElement("div");
           periodDiv.className = "period";
-          periodDiv.innerHTML = `<strong>Period ${p+1}:</strong><br>
-            På plan: ${playNames.join(", ")}<br>
-            Vilar: ${restNames.join(", ")}`;
+          periodDiv.innerHTML = `<strong>Period ${p+1} (${periodLength} min):</strong><br>
+                                 På plan: ${onField.map(i=>players[i]).join(", ")}<br>
+                                 Vilar: ${offField.map(i=>players[i]).join(", ")}`;
           matchDiv.appendChild(periodDiv);
         }
+
         scheduleDiv.appendChild(matchDiv);
       }
     }
