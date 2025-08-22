@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spelarschema 5v5</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: auto; }
+    h1 { text-align: center; }
+    input, button { margin: 5px 0; padding: 8px; width: 100%; }
+    .period { margin-top: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+    .highlight { background: #f0f8ff; }
+  </style>
+</head>
+<body>
+  <h1>Spelarschema 5v5</h1>
+  <p>Skriv in spelarnamn (8 st):</p>
+  <div id="players"></div>
+  <button onclick="generateSchedule()">Skapa schema</button>
+
+  <div id="schedule"></div>
+
+  <script>
+    // skapa 8 inputfält för spelarnamn
+    const playersDiv = document.getElementById("players");
+    for (let i = 0; i < 8; i++) {
+      let input = document.createElement("input");
+      input.placeholder = "Spelare " + (i+1);
+      input.id = "p" + i;
+      playersDiv.appendChild(input);
+    }
+
+    function generateSchedule() {
+      const players = [];
+      for (let i = 0; i < 8; i++) {
+        players.push(document.getElementById("p"+i).value || ("Spelare "+(i+1)));
+      }
+
+      const scheduleDiv = document.getElementById("schedule");
+      scheduleDiv.innerHTML = "";
+
+      const matches = 4;
+      const periods = 3;
+
+      // rotation (exempel: varje period 3 vilar)
+      const rests = [
+        [[0,1,2],[3,4,5],[6,7,0]],
+        [[1,2,3],[4,5,7],[0,1,7]],
+        [[2,3,4],[5,6,7],[0,1,2]],
+        [[3,4,5],[6,7,0],[1,2,3]]
+      ];
+
+      for (let m = 0; m < matches; m++) {
+        let matchDiv = document.createElement("div");
+        matchDiv.innerHTML = `<h2>Match ${m+1}</h2>`;
+        for (let p = 0; p < periods; p++) {
+          const restIdx = rests[m][p];
+          const restNames = restIdx.map(i => players[i]);
+          const playNames = players.filter((_, idx) => !restIdx.includes(idx));
+          let periodDiv = document.createElement("div");
+          periodDiv.className = "period";
+          periodDiv.innerHTML = `<strong>Period ${p+1}:</strong><br>
+            På plan: ${playNames.join(", ")}<br>
+            Vilar: ${restNames.join(", ")}`;
+          matchDiv.appendChild(periodDiv);
+        }
+        scheduleDiv.appendChild(matchDiv);
+      }
+    }
+  </script>
+</body>
+</html>
