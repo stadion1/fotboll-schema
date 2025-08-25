@@ -2,219 +2,35 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <title>Matchspeltid</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      background: #f7f7f7;
-    }
-    .view { display: none; }
-    .active { display: block; }
-    h2 { margin-bottom: 10px; }
-
-    .players-list, .lineup, .bench {
-      border: 1px solid #ccc;
-      min-height: 100px;
-      padding: 10px;
-      border-radius: 6px;
-      margin-bottom: 15px;
-      background: white;
-    }
-    .player {
-      padding: 6px 10px;
-      margin: 4px;
-      background: #e0e0e0;
-      border-radius: 4px;
-      cursor: grab;
-    }
-    .player.dragging { opacity: 0.5; }
-    .field { display: flex; gap: 20px; }
-    .bench, .lineup { flex: 1; }
-
-    .bar {
-      height: 20px;
-      background: lightgreen;
-      margin: 4px 0;
-      border-radius: 4px;
-      transition: width 0.5s, background 0.5s;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matchvy</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Setup-vy -->
-  <div id="setupView" class="view active">
-    <h2>Lägg till spelare</h2>
-    <input type="text" id="playerName" placeholder="Spelarnamn">
-    <button onclick="addPlayer()">Lägg till</button>
+  <h1>Matchuppställning</h1>
 
-    <h3>Spelare</h3>
-    <div id="players" class="players-list"></div>
-
-    <h3>Startelva (dra hit)</h3>
-    <div id="setupLineup" class="lineup"></div>
-
-    <h3>Bänk (dra hit)</h3>
-    <div id="setupBench" class="bench"></div>
-
-    <button onclick="startMatch()">Starta match</button>
-  </div>
-
-  <!-- Match-vy -->
-  <div id="matchView" class="view">
-    <h2>Match</h2>
-    <div>
-      Tid: <span id="clock">00:00</span>
-      <button onclick="toggleClock()">▶️⏸️</button>
-      <button onclick="resetClock()">⏹️</button>
+  <div class="container">
+    <!-- Bänk -->
+    <div class="bench" id="bench">
+      <h2>Bänk</h2>
+      <div class="player" draggable="true">Otto</div>
+      <div class="player" draggable="true">Jonathan</div>
+      <div class="player" draggable="true">Thiliam</div>
+      <div class="player" draggable="true">William</div>
+      <div class="player" draggable="true">Tod</div>
     </div>
 
+    <!-- Plan -->
     <div class="field">
-      <div>
-        <h3>På planen</h3>
-        <div id="lineup" class="lineup"></div>
-      </div>
-      <div>
-        <h3>Bänk</h3>
-        <div id="bench" class="bench"></div>
-      </div>
+      <h2>Plan</h2>
+      <div class="position goalie" data-position="goalie">Målvakt</div>
+      <div class="position" data-position="player1">Utespelare 1</div>
+      <div class="position" data-position="player2">Utespelare 2</div>
+      <div class="position" data-position="player3">Utespelare 3</div>
+      <div class="position" data-position="player4">Utespelare 4</div>
     </div>
-
-    <h3>Speltid</h3>
-    <div id="stats"></div>
   </div>
 
-  <script>
-    let players = [];
-    let matchStarted = false;
-    let timer;
-    let seconds = 0;
-
-    function addPlayer() {
-      const name = document.getElementById("playerName").value.trim();
-      if (!name) return;
-      players.push({ name, time: 0, onField: false });
-      renderSetup();
-      document.getElementById("playerName").value = "";
-    }
-
-    function renderSetup() {
-      const container = document.getElementById("players");
-      container.innerHTML = "";
-      players.forEach((p, idx) => {
-        const div = document.createElement("div");
-        div.className = "player";
-        div.draggable = true;
-        div.textContent = p.name;
-        div.dataset.index = idx;
-        div.addEventListener("dragstart", dragStart);
-        container.appendChild(div);
-      });
-    }
-
-    function startMatch() {
-      // Spelare i setupLineup -> på planen
-      const lineupEls = [...document.getElementById("setupLineup").children];
-      const benchEls = [...document.getElementById("setupBench").children];
-      players.forEach(p => p.onField = false);
-      lineupEls.forEach(el => players[el.dataset.index].onField = true);
-      benchEls.forEach(el => players[el.dataset.index].onField = false);
-
-      document.getElementById("setupView").classList.remove("active");
-      document.getElementById("matchView").classList.add("active");
-      renderMatch();
-    }
-
-    function renderMatch() {
-      const lineup = document.getElementById("lineup");
-      const bench = document.getElementById("bench");
-      const stats = document.getElementById("stats");
-      lineup.innerHTML = bench.innerHTML = stats.innerHTML = "";
-
-      players.forEach((p, idx) => {
-        const div = document.createElement("div");
-        div.className = "player";
-        div.textContent = p.name;
-        div.dataset.index = idx;
-        div.draggable = true;
-        div.addEventListener("dragstart", dragStart);
-
-        if (p.onField) lineup.appendChild(div);
-        else bench.appendChild(div);
-
-        // Stats
-        const row = document.createElement("div");
-        row.innerHTML = `
-          ${p.name} - ${formatTime(p.time)}
-          <div class="bar" id="bar-${idx}" style="width:${p.time}px"></div>
-        `;
-        stats.appendChild(row);
-      });
-    }
-
-    function dragStart(e) {
-      e.dataTransfer.setData("text/plain", e.target.dataset.index);
-    }
-
-    document.querySelectorAll(".lineup, .bench, #setupLineup, #setupBench")
-      .forEach(zone => {
-        zone.addEventListener("dragover", e => e.preventDefault());
-        zone.addEventListener("drop", e => {
-          e.preventDefault();
-          const idx = e.dataTransfer.getData("text/plain");
-          zone.appendChild(document.querySelector(`[data-index='${idx}']`));
-          players[idx].onField = zone.classList.contains("lineup") || zone.id === "setupLineup";
-          if (matchStarted) renderMatch();
-        });
-      });
-
-    function toggleClock() {
-      if (matchStarted) {
-        clearInterval(timer);
-        matchStarted = false;
-      } else {
-        matchStarted = true;
-        timer = setInterval(() => {
-          seconds++;
-          players.forEach(p => {
-            if (p.onField) p.time++;
-          });
-          updateUI();
-        }, 1000);
-      }
-    }
-
-    function resetClock() {
-      clearInterval(timer);
-      matchStarted = false;
-      seconds = 0;
-      players.forEach(p => p.time = 0);
-      updateUI();
-    }
-
-    function updateUI() {
-      document.getElementById("clock").textContent = formatTime(seconds);
-      players.forEach((p, idx) => {
-        const bar = document.getElementById("bar-" + idx);
-        if (bar) {
-          bar.style.width = (p.time*2) + "px"; // enkel skala
-          bar.style.background = getColor(p.time);
-          bar.previousSibling.textContent = `${p.name} - ${formatTime(p.time)}`;
-        }
-      });
-    }
-
-    function getColor(time) {
-      if (time < 60) return "lightgreen";
-      if (time < 180) return "yellow";
-      return "tomato";
-    }
-
-    function formatTime(sec) {
-      const m = String(Math.floor(sec/60)).padStart(2,"0");
-      const s = String(sec%60).padStart(2,"0");
-      return `${m}:${s}`;
-    }
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
