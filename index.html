@@ -1,344 +1,201 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Spelarschema 5-manna</title>
-  <style>
-    :root { --gap: 12px; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; padding: 20px; max-width: 900px; margin: auto; }
-    h1 { text-align: center; margin-bottom: 8px; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
-    label { font-weight: 600; }
-    input, select, button, textarea { padding: 8px; font-size: 16px; }
-    input[type="number"]{ width: 120px; }
-    .controls { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: var(--gap); align-items: end; margin-bottom: 12px; }
-    .players { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--gap); margin: 10px 0 18px; }
-    .players input { width: 100%; }
-    .gk-config { margin: 16px 0; border: 1px solid #ddd; border-radius: 10px; padding: 12px; }
-    .gk-config h3{ margin: 0 0 8px; }
-    .gk-table { width: 100%; border-collapse: collapse; }
-    .gk-table th, .gk-table td { border: 1px solid #eee; padding: 6px; text-align: center; }
-    .btns { display:flex; gap: var(--gap); margin: 16px 0; }
-    .schedule { margin-top: 10px; }
-    .match { border: 1px solid #ddd; border-radius: 12px; padding: 12px; margin-bottom: 16px; }
-    .match h2 { margin: 0 0 8px; }
-    .subs { list-style: none; padding: 0; margin: 6px 0 0; }
-    .subs li { padding: 6px 8px; border-bottom: 1px dashed #eee; }
-    .pill { display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background:#f3f4f6; }
-    .summary { margin-top: 8px; }
-    table.summary-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-    .summary-table th, .summary-table td { border: 1px solid #ddd; padding: 6px; text-align: center; }
-    .legend { font-size: 14px; color: #444; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5-manna Fotbollsschema</title>
+<style>
+  body { font-family: Arial; max-width: 800px; margin: auto; padding: 20px; }
+  h1 { text-align: center; }
+  input, select, button { margin: 5px 0; padding: 5px; width: 100%; }
+  .player-input { display: flex; gap: 10px; margin-bottom: 5px; }
+  .halffield { width: 100%; height: 300px; background: #cce6ff; border: 2px solid #0077cc; margin: 20px 0; position: relative; }
+  .player { width: 60px; height: 60px; border-radius: 50%; background: #ffcc00; display: flex; justify-content: center; align-items: center; font-weight: bold; position: absolute; text-align: center; }
+  .gk { background: #ff6666; }
+  .summary-table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+  .summary-table th, .summary-table td { border: 1px solid #ccc; padding: 5px; text-align: center; }
+  .arrow { font-weight: bold; font-size: 18px; }
+  .green { color: green; }
+  .red { color: red; }
+</style>
 </head>
 <body>
-  <h1>Spelarschema 5-manna</h1>
+<h1>5-manna Fotbollsschema</h1>
 
-  <div class="controls">
-    <div>
-      <label for="mode">Typ</label><br />
-      <select id="mode">
-        <option value="match">Match</option>
-        <option value="turnering">Turnering</option>
-      </select>
-    </div>
-    <div id="matchesWrap">
-      <label for="matches">Antal matcher</label><br />
-      <input type="number" id="matches" value="1" min="1" />
-    </div>
-    <div>
-      <label for="periods">Perioder/match</label><br />
-      <input type="number" id="periods" value="3" min="1" />
-    </div>
-    <div>
-      <label for="periodLength">Periodlängd (min)</label><br />
-      <input type="number" id="periodLength" value="10" min="1" />
-    </div>
-  </div>
+<h2>1. Ange spelare</h2>
+<div id="playerInputs"></div>
+<button onclick="createPlayerInputs()">Uppdatera spelarnamn</button>
 
-  <div class="controls">
-    <div>
-      <label for="numPlayers">Antal spelare i truppen</label><br />
-      <input type="number" id="numPlayers" value="8" min="5" max="12" />
-    </div>
-    <div style="grid-column: span 3;">
-      <span class="legend">1 målvakt + 4 utespelare på plan. Målvakt byts endast i paus. Utespelarbyten: minst 5 min mellan byte för samma spelare, och inga byten sista 3 min av en period (flyttas till paus). Algoritmen balanserar total utespelartid ≤2 min skillnad över turneringen.</span>
-    </div>
-  </div>
+<h2>2. Inställningar</h2>
+<label>Antal perioder:</label>
+<input type="number" id="periods" value="3" min="1">
+<label>Periodlängd (minuter):</label>
+<input type="number" id="periodLength" value="10" min="1">
+<label>Minuter mellan byten:</label>
+<input type="number" id="minInterval" value="7" min="1">
 
-  <div id="players" class="players"></div>
+<h2>3. Målvakt per period</h2>
+<div id="gkSelects"></div>
 
-  <div id="gkConfig" class="gk-config"></div>
+<h2>4. Startuppställning</h2>
+<div class="halffield" id="halffield"></div>
 
-  <div class="btns">
-    <button id="btnBuild">Skapa schema</button>
-  </div>
+<button onclick="generateSchedule()">Skapa schema</button>
 
-  <div id="schedule" class="schedule"></div>
-  <div id="totals" class="summary"></div>
+<h2>Schema och byten</h2>
+<div id="schedule"></div>
 
-  <script>
-    const el = (sel) => document.querySelector(sel);
-    const playersDiv = el('#players');
-    const gkConfigDiv = el('#gkConfig');
-    const scheduleDiv = el('#schedule');
-    const totalsDiv = el('#totals');
+<h2>Summering</h2>
+<div id="summary"></div>
 
-    // --- Build player inputs ---
-    function renderPlayerInputs(){
-      playersDiv.innerHTML = '';
-      const n = +el('#numPlayers').value;
-      for(let i=0;i<n;i++){
-        const inp = document.createElement('input');
-        inp.placeholder = `Spelare ${i+1}`;
-        inp.id = `p_${i}`;
-        playersDiv.appendChild(inp);
+<script>
+let numPlayers = 8;
+let playerInputs = [];
+
+function createPlayerInputs() {
+  const container = document.getElementById("playerInputs");
+  container.innerHTML = '';
+  playerInputs = [];
+  for (let i = 0; i < numPlayers; i++) {
+    let div = document.createElement("div");
+    div.className = "player-input";
+    let inp = document.createElement("input");
+    inp.placeholder = `Spelare ${i+1}`;
+    inp.id = `player${i}`;
+    div.appendChild(inp);
+    container.appendChild(div);
+    playerInputs.push(inp);
+  }
+  updateGKSelects();
+  drawHalffield();
+}
+
+function updateGKSelects() {
+  const gkContainer = document.getElementById("gkSelects");
+  gkContainer.innerHTML = '';
+  const periods = parseInt(document.getElementById("periods").value);
+  for (let p = 0; p < periods; p++) {
+    let sel = document.createElement("select");
+    sel.id = `gk${p}`;
+    playerInputs.forEach((input, idx)=>{
+      let opt = document.createElement("option");
+      opt.value = idx;
+      opt.text = input.value || input.placeholder;
+      sel.appendChild(opt);
+    });
+    gkContainer.appendChild(document.createTextNode(`Period ${p+1}: `));
+    gkContainer.appendChild(sel);
+    gkContainer.appendChild(document.createElement("br"));
+  }
+}
+
+function drawHalffield(startPlayers=[]) {
+  const field = document.getElementById("halffield");
+  field.innerHTML = '';
+  if(startPlayers.length < 5) return;
+  const positions = [
+    {x:'45%', y:'80%'}, // GK
+    {x:'20%', y:'60%'}, // Back 1
+    {x:'70%', y:'60%'}, // Back 2
+    {x:'30%', y:'30%'}, // Forward 1
+    {x:'60%', y:'30%'}  // Forward 2
+  ];
+  startPlayers.forEach((p,i)=>{
+    let div = document.createElement("div");
+    div.className = 'player' + (i===0?' gk':'');
+    div.style.left = positions[i].x;
+    div.style.top = positions[i].y;
+    div.innerText = p;
+    field.appendChild(div);
+  });
+}
+
+// Schemaläggning
+function generateSchedule() {
+  const periods = parseInt(document.getElementById("periods").value);
+  const periodLength = parseInt(document.getElementById("periodLength").value);
+  const minInterval = parseInt(document.getElementById("minInterval").value);
+  const players = playerInputs.map(inp=>inp.value || inp.placeholder);
+
+  // Läs målvakter
+  let gks = [];
+  for (let p = 0; p < periods; p++) {
+    let sel = document.getElementById(`gk${p}`);
+    gks.push(parseInt(sel.value));
+  }
+
+  // Skapa spelardata
+  let playerData = players.map((name, idx)=>({
+    name,
+    totalPlay: 0,
+    lastSub: -minInterval,
+    isGKPeriods: gks.filter(g=>g===idx).length
+  }));
+
+  const utespelareIdx = [...Array(players.length).keys()].filter(i=>!gks.includes(i));
+
+  // Startuppställning: välj de första 4 utespelare som start
+  let startField = utespelareIdx.slice(0,4);
+  drawHalffield([players[gks[0]], ...startField.map(i=>players[i])]);
+
+  // Schemaläggning per minut
+  let schedule = [];
+  for (let p = 0; p < periods; p++) {
+    let gk = gks[p];
+    let fieldPlayers = startField.slice();
+    let bench = utespelareIdx.filter(i=>!fieldPlayers.includes(i));
+    for (let m=1; m<=periodLength; m++) {
+      // Byten
+      let canSub = bench.filter(i=> (p*periodLength + m - playerData[i].lastSub) >= minInterval);
+      if(canSub.length > 0){
+        let subsNum = Math.min(2, canSub.length, fieldPlayers.length);
+        let subsOut = fieldPlayers.slice(0, subsNum);
+        let subsIn = canSub.slice(0,subsNum);
+        fieldPlayers = fieldPlayers.filter(f=>!subsOut.includes(f)).concat(subsIn);
+        bench = bench.filter(b=>!subsIn.includes(b)).concat(subsOut);
+        subsIn.forEach(i=>playerData[i].lastSub = p*periodLength + m);
+        subsOut.forEach(i=>playerData[i].lastSub = p*periodLength + m);
+        schedule.push({minute: (p*periodLength + m), in: subsIn, out: subsOut, gk});
+      } else {
+        schedule.push({minute: (p*periodLength + m), in: [], out: [], gk});
       }
-    }
-    el('#numPlayers').addEventListener('input', ()=>{ renderPlayerInputs(); renderGKConfig(); });
-    ['mode','matches','periods','periodLength'].forEach(id=> el('#'+id).addEventListener('input', renderGKConfig));
-
-    // Show/hide matches input
-    function updateMode(){
-      const isTournament = el('#mode').value === 'turnering';
-      el('#matchesWrap').style.display = isTournament ? 'block' : 'none';
-    }
-    el('#mode').addEventListener('change', ()=>{ updateMode(); renderGKConfig(); });
-
-    // --- GK selection UI ---
-    function getPlayerNames(){
-      const n = +el('#numPlayers').value;
-      const names = [];
-      for(let i=0;i<n;i++) names.push(el('#p_'+i)?.value?.trim() || `Spelare ${i+1}`);
-      return names;
-    }
-
-    function renderGKConfig(){
-      const names = getPlayerNames();
-      const matches = el('#mode').value === 'turnering' ? +el('#matches').value : 1;
-      const periods = +el('#periods').value;
-      if(!names.length) return;
-      let html = `<h3>Målvakt per period</h3><table class="gk-table"><thead><tr><th>Match</th>`;
-      for(let p=1;p<=periods;p++) html += `<th>Period ${p}</th>`;
-      html += `</tr></thead><tbody>`;
-      for(let m=1;m<=matches;m++){
-        html += `<tr><td>${m}</td>`;
-        for(let p=1;p<=periods;p++){
-          html += `<td><select data-gk="${m-1}-${p-1}">`;
-          names.forEach((nm,idx)=>{ html += `<option value="${idx}">${nm}</option>`; });
-          html += `</select></td>`;
-        }
-        html += `</tr>`;
-      }
-      html += `</tbody></table>`;
-      gkConfigDiv.innerHTML = html;
-    }
-
-    // initial
-    updateMode();
-    renderPlayerInputs();
-    renderGKConfig();
-
-    // --- Core simulation ---
-    function buildGKMatrix(names){
-      const matches = el('#mode').value === 'turnering' ? +el('#matches').value : 1;
-      const periods = +el('#periods').value;
-      const gk = Array.from({length: matches}, ()=> Array.from({length: periods}, ()=>0));
-      gkConfigDiv.querySelectorAll('select[data-gk]')?.forEach(sel=>{
-        const [m,p] = sel.getAttribute('data-gk').split('-').map(Number);
-        gk[m][p] = +sel.value;
-      });
-      return gk;
-    }
-
-    function simulate(){
-      const names = getPlayerNames();
-      const N = names.length;
-      const isTournament = el('#mode').value === 'turnering';
-      const matches = isTournament ? +el('#matches').value : 1;
-      const P = +el('#periods').value;
-      const L = +el('#periodLength').value; // minutes per period
-      const totalMatchMinutes = P * L;
-
-      const GK = buildGKMatrix(names); // [match][period] -> player index
-
-      // --- Targets over tournament (exclude GK minutes) ---
-      const gkMinutes = new Array(N).fill(0);
-      for(let m=0;m<matches;m++) for(let p=0;p<P;p++) gkMinutes[ GK[m][p] ] += L;
-      const eligible = gkMinutes.map(gkm => matches*totalMatchMinutes - gkm);
-      const totalUteCapacity = matches*totalMatchMinutes*4; // 4 outfield slots per minute
-      const sumEligible = eligible.reduce((a,b)=>a+b,0) || 1; // avoid 0
-      const target = eligible.map(e => totalUteCapacity * (e / sumEligible));
-
-      // State across tournament
-      const played = new Array(N).fill(0); // outfield minutes only
-      const lastChange = new Array(N).fill(-5); // allow change earliest at t>=0+5
-
-      const allMatchesOutput = [];
-      const perMatchPlayed = Array.from({length: matches}, ()=> new Array(N).fill(0));
-
-      // Helper: pick starters per match (rotate who starts among non-GK of period 1)
-      function pickStarters(m){
-        const p0GK = GK[m][0];
-        const pool = Array.from({length:N}, (_,i)=>i).filter(i => i!==p0GK);
-        // rotate by match index for fairness over tournament
-        const startOffset = m % pool.length;
-        const rotated = pool.slice(startOffset).concat(pool.slice(0,startOffset));
-        return rotated.slice(0,4); // 4 outfield starters
-      }
-
-      // Simulate each match
-      for(let m=0;m<matches;m++){
-        const subsLog = []; // list of {minute, out, in}
-        // onField: exactly 4 outfield players (GK handled separately)
-        let onField = pickStarters(m);
-        // mark they "came in" at t=0
-        onField.forEach(i=> lastChange[i] = Math.max(lastChange[i], 0));
-        const isOnField = (i, minute) => onField.includes(i);
-
-        // minute loop 0..totalMatchMinutes-1
-        for(let t=0; t<totalMatchMinutes; t++){
-          const curPeriod = Math.floor(t / L); // 0-based
-          const minuteInPeriod = t % L; // 0..L-1
-          const currentGK = GK[m][curPeriod];
-
-          // Update played for current minute (only outfield onField)
-          onField.forEach(i=>{ played[i]++; perMatchPlayed[m][i]++; });
-
-          const minutesLeftInPeriod = L - 1 - minuteInPeriod; // after counting this minute
-
-          // Period pause after minuteInPeriod == L-1
-          const isPauseNext = minuteInPeriod === L-1;
-
-          // Handle GK changes at pause (before next minute)
-          if(isPauseNext && curPeriod < P-1){
-            const nextGK = GK[m][curPeriod+1];
-            // No action needed here besides preventing them from being in onField next period if they were
-            if(onField.includes(nextGK)){
-              // ensure GK isn't onField at start of next period (he's GK, not outfield)
-              onField = onField.filter(i => i !== nextGK);
-              // backfill with most deficit player not GK next period
-              const pool = Array.from({length:N}, (_,i)=>i).filter(i => i!==nextGK);
-              const deficits = pool.map(i=>({i, deficit: target[i]-played[i]})).sort((a,b)=>b.deficit-a.deficit);
-              for(const cand of deficits){
-                if(onField.length<4 && !onField.includes(cand.i)) onField.push(cand.i);
-              }
-            }
-          }
-
-          // Substitution logic (not within last 3 minutes of a period, and not at pause)
-          const allowSubThisMinute = (minutesLeftInPeriod >= 3);
-          if(allowSubThisMinute){
-            // Candidates must not be current GK
-            const gkNow = currentGK;
-            const bench = Array.from({length:N}, (_,i)=>i).filter(i => i!==gkNow && !onField.includes(i));
-            const field = onField.filter(i => i!==gkNow);
-
-            // compute deficits
-            const deficit = (i) => target[i] - played[i];
-            // pick best in: largest positive deficit, eligible by 5-min rule
-            const bestIn = bench
-              .filter(i => (t - lastChange[i] >= 5))
-              .map(i => ({i, d: deficit(i)}))
-              .sort((a,b)=> b.d - a.d)[0];
-
-            // pick best out: smallest deficit (most surplus), eligible by 5-min rule
-            const bestOut = field
-              .filter(i => (t - lastChange[i] >= 5))
-              .map(i => ({i, d: deficit(i)}))
-              .sort((a,b)=> a.d - b.d)[0];
-
-            if(bestIn && bestOut && bestIn.d > bestOut.d){
-              // Perform one-for-one swap
-              onField = onField.filter(i => i !== bestOut.i);
-              onField.push(bestIn.i);
-              lastChange[bestIn.i] = t;
-              lastChange[bestOut.i] = t;
-              subsLog.push({minute: t+1, out: bestOut.i, _outName: names[bestOut.i], in: bestIn.i, _inName: names[bestIn.i]});
-            }
-          }
-        }
-
-        // Store match output
-        allMatchesOutput.push({ match: m+1, subs: subsLog });
-      }
-
-      // Build UI output
-      renderSchedule(names, GK, allMatchesOutput, perMatchPlayed);
-
-      // Totals over tournament
-      const totals = names.map((nm,i)=>({name:nm, minutes: played[i]}));
-      renderTotals(totals, names);
-    }
-
-    function renderSchedule(names, GK, allMatchesOutput, perMatchPlayed){
-      const P = +el('#periods').value; const L = +el('#periodLength').value;
-      scheduleDiv.innerHTML = '';
-      allMatchesOutput.forEach((mrec, idx)=>{
-        const matchDiv = document.createElement('div');
-        matchDiv.className = 'match';
-        matchDiv.innerHTML = `<h2>Match ${mrec.match}</h2>`;
-        // GK rows
-        const gkRow = document.createElement('div');
-        let gkInfo = '<div class="legend">Målvakt per period: ';
-        for(let p=0;p<P;p++) gkInfo += `<span class="pill">P${p+1}: ${names[GK[idx][p]]}</span> `;
-        gkInfo += '</div>';
-        gkRow.innerHTML = gkInfo;
-        matchDiv.appendChild(gkRow);
-        // Subs list
-        const ul = document.createElement('ul');
-        ul.className = 'subs';
-        if(!mrec.subs.length){
-          const li = document.createElement('li');
-          li.textContent = 'Inga byten under denna match (regler tillät ej eller redan balanserat).';
-          ul.appendChild(li);
-        } else {
-          mrec.subs.forEach(s=>{
-            const li = document.createElement('li');
-            li.innerHTML = `Minut ${s.minute}: 🔴 <strong>${names[s.out]}</strong> ut &nbsp;→&nbsp; 🟢 <strong>${names[s.in]}</strong> in`;
-            ul.appendChild(li);
-          });
-        }
-        matchDiv.appendChild(ul);
-
-        // Per-match summary table
-        const tbl = document.createElement('table');
-        tbl.className = 'summary-table';
-        tbl.innerHTML = '<tr><th>Spelare</th><th>Utespelartid (min)</th></tr>' +
-          names.map((nm,i)=>`<tr><td>${nm}</td><td>${perMatchPlayed[idx][i]}</td></tr>`).join('');
-        matchDiv.appendChild(tbl);
-
-        scheduleDiv.appendChild(matchDiv);
+      // Uppdatera speltid
+      fieldPlayers.forEach(i=>{
+        if(playerData[i].isGKPeriods===0) playerData[i].totalPlay++;
       });
     }
+  }
 
-    function renderTotals(totals, names){
-      const table = document.createElement('table');
-      table.className = 'summary-table';
-      table.innerHTML = '<tr><th>Spelare</th><th>Total utespelartid (min)</th></tr>' +
-        totals.map(r=>`<tr><td>${r.name}</td><td>${r.minutes}</td></tr>`).join('');
-      totalsDiv.innerHTML = '<h3>Summering – hela turneringen</h3>';
-      totalsDiv.appendChild(table);
-    }
+  displaySchedule(schedule, playerData, players);
+}
 
-    el('#btnBuild').addEventListener('click', simulate);
-  </script>
+// Visa schema och summering
+function displaySchedule(schedule, playerData, players){
+  const schedDiv = document.getElementById("schedule");
+  schedDiv.innerHTML = '';
+  schedule.forEach(s=>{
+    let div = document.createElement("div");
+    let inNames = s.in.map(i=>players[i]);
+    let outNames = s.out.map(i=>players[i]);
+    let str = `<strong>Minut ${s.minute}:</strong> GK=${players[s.gk]} `;
+    if(inNames.length>0) str += `<span class="arrow green">↑ ${inNames.join(", ")}</span> `;
+    if(outNames.length>0) str += `<span class="arrow red">↓ ${outNames.join(", ")}</span>`;
+    div.innerHTML = str;
+    schedDiv.appendChild(div);
+  });
+
+  // Summering
+  const sumDiv = document.getElementById("summary");
+  let table = '<table class="summary-table"><tr><th>Spelare</th><th>Utespelartid (min)</th></tr>';
+  playerData.forEach(pd=>{
+    table += `<tr><td>${pd.name}</td><td>${pd.totalPlay}</td></tr>`;
+  });
+  table += '</table>';
+  sumDiv.innerHTML = table;
+}
+
+// Initiera inputs
+createPlayerInputs();
+</script>
 </body>
 </html>
-
-<!DOCTYPE html>
-<html lang="sv">
-<head>
-  <meta charset="UTF-8">
-  <title>Matchoptimering</title>
-</head>
-<body>
-  <h1>Matchplanering</h1>
-  <div id="resultat"></div>
-
-  <!-- Länka in din JS-fil -->
-  <script src="script.js"></script>
-</body>
-</html>
-
