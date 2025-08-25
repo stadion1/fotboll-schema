@@ -3,24 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>5-manna Fotbollsschema</title>
+<title>5-manna Speltid Tracker</title>
 <style>
-  body { font-family: Arial; max-width: 900px; margin: auto; padding: 20px; }
-  h1 { text-align: center; }
-  input, select, button { margin: 5px 0; padding: 5px; width: 100%; }
-  .player-input { display: flex; gap: 10px; margin-bottom: 5px; }
-  .halffield { width: 100%; height: 300px; background: #cce6ff; border: 2px solid #0077cc; margin: 20px 0; position: relative; }
-  .player { width: 60px; height: 60px; border-radius: 50%; background: #ffcc00; display: flex; justify-content: center; align-items: center; font-weight: bold; position: absolute; text-align: center; }
-  .gk { background: #ff6666; }
-  .summary-table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-  .summary-table th, .summary-table td { border: 1px solid #ccc; padding: 5px; text-align: center; }
-  .arrow { font-weight: bold; font-size: 18px; }
-  .green { color: green; }
-  .red { color: red; }
+body { font-family: Arial, sans-serif; padding: 10px; max-width: 900px; margin: auto; }
+h1, h2 { text-align: center; }
+input, select, button { margin: 5px 0; padding: 5px; width: 100%; }
+.player-input { display: flex; gap: 10px; margin-bottom: 5px; flex-wrap: wrap; }
+.player { width: 60px; height: 60px; border-radius: 50%; background: #ffcc00; display: flex; justify-content: center; align-items: center; font-weight: bold; position: absolute; text-align: center; cursor: grab; }
+.gk { background: #ff6666; }
+.halffield { width: 100%; height: 300px; background: #cce6ff; border: 2px solid #0077cc; margin: 20px 0; position: relative; }
+.staplar { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px; }
+.stapel { width: 60px; background: #00cc66; text-align: center; color: white; font-size: 12px; }
+.arrow { font-weight: bold; font-size: 18px; }
+.green { color: green; }
+.red { color: red; }
+#schedule, #summary { margin-top: 10px; }
+.summary-table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+.summary-table th, .summary-table td { border: 1px solid #ccc; padding: 5px; text-align: center; }
 </style>
 </head>
 <body>
-<h1>5-manna Fotbollsschema</h1>
+
+<h1>5-manna Speltid Tracker</h1>
 
 <h2>1. Ange spelare</h2>
 <div id="playerInputs"></div>
@@ -31,8 +35,6 @@
 <input type="number" id="periods" value="3" min="1">
 <label>Periodlängd (minuter):</label>
 <input type="number" id="periodLength" value="10" min="1">
-<label>Minuter mellan byten:</label>
-<input type="number" id="minInterval" value="7" min="1">
 
 <h2>3. Målvakt per period</h2>
 <div id="gkSelects"></div>
@@ -40,17 +42,34 @@
 <h2>4. Startuppställning (halvplan)</h2>
 <div class="halffield" id="halffield"></div>
 
-<button onclick="generateSchedule()">Skapa schema</button>
+<h2>5. Matchkontroll</h2>
+<button onclick="startMatch()">Starta match</button>
+<button onclick="pauseMatch()">Pausa match</button>
 
-<h2>Schema och byten</h2>
+<h2>6. Byten / Skador</h2>
+<div>
+  <label>Välj spelare som går ut:</label>
+  <select id="subOut" multiple></select>
+  <label>Välj spelare som går in:</label>
+  <select id="subIn" multiple></select>
+  <button onclick="doSub()">Byt spelare</button>
+  <button onclick="markInjury()">Markera skada</button>
+</div>
+
+<h2>7. Speltid & schema</h2>
 <div id="schedule"></div>
-
-<h2>Summering</h2>
 <div id="summary"></div>
 
 <script>
 let numPlayers = 8;
 let playerInputs = [];
+let players = [];
+let playerData = [];
+let periods = 3;
+let periodLength = 10;
+let matchRunning = false;
+let timer;
+let currentMinute = 0;
 
 function createPlayerInputs() {
   const container = document.getElementById("playerInputs");
@@ -65,15 +84,15 @@ function createPlayerInputs() {
     div.appendChild(inp);
     container.appendChild(div);
     playerInputs.push(inp);
-    inp.addEventListener("input", updateGKSelects);
   }
   updateGKSelects();
+  updateSubSelects();
 }
 
 function updateGKSelects() {
   const gkContainer = document.getElementById("gkSelects");
   gkContainer.innerHTML = '';
-  const periods = parseInt(document.getElementById("periods").value);
+  periods = parseInt(document.getElementById("periods").value);
   for (let p = 0; p < periods; p++) {
     let sel = document.createElement("select");
     sel.id = `gk${p}`;
@@ -89,10 +108,20 @@ function updateGKSelects() {
   }
 }
 
-function drawHalffield(startPlayers=[]) {
+function updateSubSelects() {
+  const outSel = document.getElementById("subOut");
+  const inSel = document.getElementById("subIn");
+  outSel.innerHTML = ''; inSel.innerHTML = '';
+  playerInputs.forEach((inp, idx)=>{
+    let name = inp.value || inp.placeholder;
+    let opt1 = document.createElement("option"); opt1.value=idx; opt1.text=name; outSel.appendChild(opt1);
+    let opt2 = document.createElement("option"); opt2.value=idx; opt2.text=name; inSel.appendChild(opt2);
+  });
+}
+
+function drawHalffield() {
   const field = document.getElementById("halffield");
   field.innerHTML = '';
-  if(startPlayers.length < 5) return;
   const positions = [
     {x:'45%', y:'80%'}, // GK
     {x:'20%', y:'60%'}, // Back 1
@@ -100,111 +129,90 @@ function drawHalffield(startPlayers=[]) {
     {x:'30%', y:'30%'}, // Forward 1
     {x:'60%', y:'30%'}  // Forward 2
   ];
-  startPlayers.forEach((p,i)=>{
+  let onField = playerData.filter(p=>p.onField);
+  onField.forEach((p,i)=>{
     let div = document.createElement("div");
-    div.className = 'player' + (i===0?' gk':'');
+    div.className = 'player' + (p.gk?' gk':'');
     div.style.left = positions[i].x;
     div.style.top = positions[i].y;
-    div.innerText = p;
+    div.innerText = p.name;
     field.appendChild(div);
   });
 }
 
-function generateSchedule() {
-  const periods = parseInt(document.getElementById("periods").value);
-  const periodLength = parseInt(document.getElementById("periodLength").value);
-  const minInterval = parseInt(document.getElementById("minInterval").value);
-  const players = playerInputs.map(inp=>inp.value || inp.placeholder);
+function startMatch() {
+  players = playerInputs.map(inp=>inp.value || inp.placeholder);
+  playerData = players.map(name=>({name, totalPlay:0, gk:false, onField:false, injured:false}));
+  periodLength = parseInt(document.getElementById("periodLength").value);
+  periods = parseInt(document.getElementById("periods").value);
+  currentMinute = 0;
 
-  // Målvakter
-  let gks = [];
-  for (let p = 0; p < periods; p++) {
-    let sel = document.getElementById(`gk${p}`);
-    gks.push(parseInt(sel.value));
+  // Sätt startuppställning: första GK + 4 utespelare
+  const gkIdx = parseInt(document.getElementById(`gk0`).value);
+  playerData[gkIdx].onField = true; playerData[gkIdx].gk=true;
+  let utespelareIdx = [...Array(players.length).keys()].filter(i=>i!==gkIdx);
+  for(let i=0;i<4;i++) playerData[utespelareIdx[i]].onField = true;
+
+  drawHalffield();
+  updateSummary();
+
+  if(!matchRunning) {
+    matchRunning = true;
+    timer = setInterval(tickMinute, 1000);
   }
-
-  // Skapa spelardata
-  let playerData = players.map((name, idx)=>({
-    name,
-    totalPlay: 0,
-    lastSub: -minInterval,
-    gkMinutes: gks.filter(g=>g===idx).length * periodLength
-  }));
-
-  // Utespelare index
-  const utespelareIdx = [...Array(players.length).keys()].filter(i=>!gks.includes(i));
-
-  // Beräkna önskad utespelartid
-  const totalUtespelartid = periodLength*periods*4; // 4 utespelare på plan
-  const avgUtespelartid = totalUtespelartid / utespelareIdx.length;
-
-  // Startuppställning: första 4 utespelare
-  let startField = utespelareIdx.slice(0,4);
-  drawHalffield([players[gks[0]], ...startField.map(i=>players[i])]);
-
-  let schedule = [];
-  for (let p = 0; p < periods; p++) {
-    let gk = gks[p];
-    let fieldPlayers = startField.slice();
-    let bench = utespelareIdx.filter(i=>!fieldPlayers.includes(i));
-
-    for (let m=1; m<=periodLength; m++) {
-      // Byten
-      let outCandidates = fieldPlayers.filter(i=>{
-        return m + p*periodLength - playerData[i].lastSub >= minInterval &&
-               playerData[i].totalPlay > avgUtespelartid;
-      });
-      let inCandidates = bench.filter(i=>{
-        return m + p*periodLength - playerData[i].lastSub >= minInterval &&
-               playerData[i].totalPlay < avgUtespelartid;
-      });
-
-      let subsNum = Math.min(2, outCandidates.length, inCandidates.length);
-      let subsOut = outCandidates.slice(0, subsNum);
-      let subsIn = inCandidates.slice(0, subsNum);
-
-      fieldPlayers = fieldPlayers.filter(f=>!subsOut.includes(f)).concat(subsIn);
-      bench = bench.filter(b=>!subsIn.includes(b)).concat(subsOut);
-
-      subsIn.forEach(i=>playerData[i].lastSub = m + p*periodLength);
-      subsOut.forEach(i=>playerData[i].lastSub = m + p*periodLength);
-
-      // Uppdatera speltid (utespelartid)
-      fieldPlayers.forEach(i=>playerData[i].totalPlay++);
-
-      schedule.push({minute: m + p*periodLength, in: subsIn, out: subsOut, gk});
-    }
-  }
-
-  displaySchedule(schedule, playerData, players);
 }
 
-function displaySchedule(schedule, playerData, players){
-  const schedDiv = document.getElementById("schedule");
-  schedDiv.innerHTML = '';
-  schedule.forEach(s=>{
-    let div = document.createElement("div");
-    let inNames = s.in.map(i=>players[i]);
-    let outNames = s.out.map(i=>players[i]);
-    let str = `<strong>Minut ${s.minute}:</strong> GK=${players[s.gk]} `;
-    if(inNames.length>0) str += `<span class="arrow green">↑ ${inNames.join(", ")}</span> `;
-    if(outNames.length>0) str += `<span class="arrow red">↓ ${outNames.join(", ")}</span>`;
-    div.innerHTML = str;
-    schedDiv.appendChild(div);
-  });
+function pauseMatch() {
+  matchRunning = false;
+  clearInterval(timer);
+}
 
-  // Summering
+function tickMinute() {
+  currentMinute++;
+  playerData.forEach(p=>{
+    if(p.onField && !p.gk && !p.injured) p.totalPlay++;
+  });
+  updateSummary();
+}
+
+function doSub() {
+  const outSel = document.getElementById("subOut");
+  const inSel = document.getElementById("subIn");
+  let outIdx = Array.from(outSel.selectedOptions).map(o=>parseInt(o.value));
+  let inIdx = Array.from(inSel.selectedOptions).map(o=>parseInt(o.value));
+
+  // Kontrollera att spelare på planen byts ut
+  outIdx.forEach(i=>{playerData[i].onField=false;});
+  inIdx.forEach(i=>{playerData[i].onField=true;});
+
+  drawHalffield();
+  updateSummary();
+}
+
+function markInjury() {
+  const outSel = document.getElementById("subOut");
+  let injuredIdx = Array.from(outSel.selectedOptions).map(o=>parseInt(o.value));
+  injuredIdx.forEach(i=>{
+    playerData[i].injured=true;
+    playerData[i].onField=false;
+  });
+  drawHalffield();
+  updateSummary();
+}
+
+function updateSummary() {
   const sumDiv = document.getElementById("summary");
-  let table = '<table class="summary-table"><tr><th>Spelare</th><th>Utespelartid (min)</th><th>Målvaktstid (min)</th></tr>';
-  playerData.forEach(pd=>{
-    table += `<tr><td>${pd.name}</td><td>${pd.totalPlay}</td><td>${pd.gkMinutes}</td></tr>`;
+  let table = '<table class="summary-table"><tr><th>Spelare</th><th>Utespelartid (min)</th><th>Målvakt</th></tr>';
+  playerData.forEach(p=>{
+    table+=`<tr><td>${p.name}</td><td>${p.totalPlay}</td><td>${p.gk?periodLength*p.gk:false}</td></tr>`;
   });
-  table += '</table>';
-  sumDiv.innerHTML = table;
+  table+='</table>';
+  sumDiv.innerHTML=table;
 }
 
-// Initiera
 createPlayerInputs();
+updateSubSelects();
 </script>
+
 </body>
 </html>
