@@ -1,33 +1,51 @@
-// script.js
+const players = document.querySelectorAll('.player');
+const positions = document.querySelectorAll('.position');
+const bench = document.getElementById('bench');
 
-// Exempelspelare (byt ut mot dina egna)
-const players = ["Otto", "Jonathan", "Thiliam", "William", "Tod"];
+let draggedPlayer = null;
 
-// Antal perioder (t.ex. 6 perioder = 2 matcher med 3 perioder vardera)
-const periods = 6;
+players.forEach(player => {
+  player.addEventListener('dragstart', () => {
+    draggedPlayer = player;
+    player.classList.add('dragging');
+  });
 
-// Vem som startar (0 = första spelaren i listan)
-let startPlayerIndex = 0;
-
-// Funktion för att generera spelschema
-function generateSchedule(players, periods, startIndex) {
-  let schedule = [];
-  let playerIndex = startIndex;
-
-  for (let i = 0; i < periods; i++) {
-    schedule.push(players[playerIndex]);
-    playerIndex = (playerIndex + 1) % players.length; // hoppa till nästa spelare
-  }
-
-  return schedule;
-}
-
-// Kör funktionen och visa i webbsidan
-const schedule = generateSchedule(players, periods, startPlayerIndex);
-
-const resultDiv = document.getElementById("resultat");
-resultDiv.innerHTML = "<h2>Spelschema</h2>";
-
-schedule.forEach((player, index) => {
-  resultDiv.innerHTML += `<p>Period ${index + 1}: ${player}</p>`;
+  player.addEventListener('dragend', () => {
+    draggedPlayer = null;
+    player.classList.remove('dragging');
+  });
 });
+
+positions.forEach(position => {
+  position.addEventListener('dragover', e => {
+    e.preventDefault();
+    position.classList.add('over');
+  });
+
+  position.addEventListener('dragleave', () => {
+    position.classList.remove('over');
+  });
+
+  position.addEventListener('drop', () => {
+    position.classList.remove('over');
+
+    if (!draggedPlayer) return;
+
+    // Om platsen redan har en spelare -> tillbaka till bänken
+    if (position.firstChild && position.firstChild.classList.contains('player')) {
+      bench.appendChild(position.firstChild);
+    }
+
+    position.appendChild(draggedPlayer);
+  });
+});
+
+// Tillåter att droppa tillbaka till bänken
+bench.addEventListener('dragover', e => e.preventDefault());
+
+bench.addEventListener('drop', () => {
+  if (draggedPlayer) {
+    bench.appendChild(draggedPlayer);
+  }
+});
+
