@@ -2,110 +2,108 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fotbollsuppställning</title>
+  <title>Laguppställning</title>
   <style>
-    body { font-family: Arial; padding: 10px; max-width: 600px; margin: auto; background: #f0f8ff; }
-    h1 { text-align: center; }
-    input, button { padding: 8px; margin: 5px 0; width: 100%; }
-    .bench, .field { border: 2px solid #333; border-radius: 10px; padding: 10px; margin-top: 10px; background: #fff; }
-    .bench h2, .field h2 { text-align: center; }
-    .player { border: 1px solid #333; padding: 8px; margin: 5px; border-radius: 5px; background: #dff; cursor: grab; }
-    .player.dragging { opacity: 0.5; }
-    .field-positions { display: flex; justify-content: space-around; flex-wrap: wrap; margin-top: 10px; }
-    .position { border: 2px dashed #666; border-radius: 8px; min-height: 50px; width: 45%; margin: 5px; padding: 10px; background: #fafafa; text-align: center; }
-    .goalie { background: #ffe0e0; width: 95%; }
-    .over { background: #cfc !important; }
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h2 {
+      margin: 10px 0;
+    }
+    .container {
+      display: flex;
+      gap: 50px;
+      margin-top: 20px;
+    }
+    .list {
+      border: 2px dashed #999;
+      border-radius: 8px;
+      width: 200px;
+      min-height: 250px;
+      padding: 10px;
+    }
+    .player {
+      padding: 8px;
+      margin: 5px 0;
+      background: #f0f0f0;
+      border-radius: 4px;
+      cursor: grab;
+    }
+    .player:active {
+      cursor: grabbing;
+    }
+    .highlight {
+      background: #d0ffd0;
+    }
+    .add-player {
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
-  <h1>Fotbollsuppställning</h1>
 
-  <div>
-    <label>Lägg till spelare:</label>
-    <input type="text" id="newPlayer" placeholder="Namn på spelare">
-    <button onclick="addPlayer()">Lägg till</button>
+  <h1>Skapa laguppställning</h1>
+
+  <div class="add-player">
+    <input type="text" id="playerName" placeholder="Spelarens namn">
+    <button onclick="addPlayer()">Lägg till spelare</button>
   </div>
 
-  <div class="bench" id="bench">
-    <h2>Bänk</h2>
-  </div>
-
-  <div>
-    <label>Matchlängd (minuter per period):</label>
-    <input type="number" id="periodLength" value="10" min="1">
-    <label>Antal perioder:</label>
-    <input type="number" id="periods" value="3" min="1">
-  </div>
-
-  <div class="field">
-    <h2>Startelva</h2>
-    <div class="field-positions">
-      <div class="position goalie" data-position="goalie">Målvakt</div>
-      <div class="position" data-position="player1">Utespelare 1</div>
-      <div class="position" data-position="player2">Utespelare 2</div>
-      <div class="position" data-position="player3">Utespelare 3</div>
-      <div class="position" data-position="player4">Utespelare 4</div>
+  <div class="container">
+    <div>
+      <h2>Avbytare</h2>
+      <div id="bench" class="list" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+    <div>
+      <h2>Startelva</h2>
+      <div id="starting" class="list" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
     </div>
   </div>
 
-<script>
-const bench = document.getElementById('bench');
-const positions = document.querySelectorAll('.position');
-const newPlayerInput = document.getElementById('newPlayer');
-let draggedPlayer = null;
+  <script>
+    let playerId = 0;
 
-function addPlayer() {
-  const name = newPlayerInput.value.trim();
-  if(!name) return;
-  const playerDiv = document.createElement('div');
-  playerDiv.className = 'player';
-  playerDiv.draggable = true;
-  playerDiv.textContent = name;
-  bench.appendChild(playerDiv);
-  addDragListeners(playerDiv);
-  newPlayerInput.value = '';
-}
-
-newPlayerInput.addEventListener('keypress', e => {
-  if(e.key === 'Enter') addPlayer();
-});
-
-function addDragListeners(player) {
-  player.addEventListener('dragstart', () => {
-    draggedPlayer = player;
-    player.classList.add('dragging');
-  });
-  player.addEventListener('dragend', () => {
-    draggedPlayer = null;
-    player.classList.remove('dragging');
-  });
-}
-
-// Droppa på startelva
-positions.forEach(pos => {
-  pos.addEventListener('dragover', e => e.preventDefault());
-  pos.addEventListener('dragenter', e => e.preventDefault());
-  pos.addEventListener('dragleave', () => pos.classList.remove('over'));
-  pos.addEventListener('dragover', () => pos.classList.add('over'));
-  pos.addEventListener('drop', () => {
-    pos.classList.remove('over');
-    if(!draggedPlayer) return;
-
-    // Om redan spelare på plats -> tillbaka till bänken
-    if(pos.querySelector('.player')) {
-      bench.appendChild(pos.querySelector('.player'));
+    function addPlayer() {
+      const nameInput = document.getElementById("playerName");
+      const name = nameInput.value.trim();
+      if (!name) return;
+      
+      const player = document.createElement("div");
+      player.className = "player";
+      player.draggable = true;
+      player.id = "player-" + playerId++;
+      player.innerText = name;
+      player.ondragstart = drag;
+      
+      document.getElementById("bench").appendChild(player);
+      nameInput.value = "";
     }
-    pos.appendChild(draggedPlayer);
-  });
-});
 
-// Droppa tillbaka till bänken
-bench.addEventListener('dragover', e => e.preventDefault());
-bench.addEventListener('drop', () => {
-  if(draggedPlayer) bench.appendChild(draggedPlayer);
-});
-</script>
+    function allowDrop(event) {
+      event.preventDefault();
+      if (event.target.classList.contains("list")) {
+        event.target.classList.add("highlight");
+      }
+    }
+
+    function drop(event) {
+      event.preventDefault();
+      const data = event.dataTransfer.getData("text");
+      const player = document.getElementById(data);
+      if (event.target.classList.contains("list")) {
+        event.target.appendChild(player);
+        event.target.classList.remove("highlight");
+      }
+    }
+
+    function drag(event) {
+      event.dataTransfer.setData("text", event.target.id);
+    }
+  </script>
 
 </body>
 </html>
